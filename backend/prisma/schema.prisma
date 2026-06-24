@@ -1,0 +1,205 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum UserRole {
+  ADMIN
+  CA
+  TAXPAYER
+}
+
+enum ReturnStatus {
+  DRAFT
+  PENDING
+  FILED
+  REJECTED
+}
+
+enum ClientStatus {
+  ACTIVE
+  CLOSING
+  CLOSED
+}
+
+enum ApprovalStatus {
+  GRANTED
+  PENDING
+  DENIED
+}
+
+enum RegisterStatus {
+  ACTIVE
+  GAP
+  NA
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(TAXPAYER)
+  gstin     String?
+  pan       String?
+  phone     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  gstReturns      GstReturn[]
+  itrReturns      ItrReturn[]
+  vaultClients    VaultClient[]
+  aiConversations AiConversation[]
+
+  @@map("users")
+}
+
+model GstReturn {
+  id         String       @id @default(uuid())
+  userId     String
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  gstin      String
+  period     String
+  returnType String
+  status     ReturnStatus @default(DRAFT)
+  data       Json         @default("{}")
+  filedAt    DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([gstin, period])
+  @@map("gst_returns")
+}
+
+model ItrReturn {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pan            String
+  assessmentYear String
+  returnType     String
+  status         ReturnStatus @default(DRAFT)
+  data           Json         @default("{}")
+  filedAt        DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([userId, status])
+  @@index([pan, assessmentYear])
+  @@map("itr_returns")
+}
+
+model VaultClient {
+  id              String       @id @default(uuid())
+  userId          String
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  gstin           String?
+  cin             String?
+  pan             String?
+  industry        String
+  employees       Int          @default(0)
+  jurisdiction    String       @default("Karnataka")
+  website         String?
+  engagementStart DateTime?
+  engagementEnd   DateTime?
+  status          ClientStatus @default(ACTIVE)
+  services        String[]
+  riskScore       Int          @default(0)
+  riskBand        String       @default("Low")
+  dataCategories  String[]
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  dataAssets    DataAsset[]
+  sharingLogs   SharingLog[]
+  dpdpRegisters DpdpRegister[]
+
+  @@index([userId, status])
+  @@map("vault_clients")
+}
+
+model DataAsset {
+  id               String      @id @default(uuid())
+  vaultClientId    String
+  vaultClient      VaultClient @relation(fields: [vaultClientId], references: [id], onDelete: Cascade)
+  name             String
+  service          String
+  categories       String[]
+  classification   String
+  riskScore        Int         @default(0)
+  sensitivity      Int         @default(1)
+  isSdp            Boolean     @default(false)
+  storageFolder    String
+  sharingPolicy    String
+  retentionTrigger String
+  retentionAction  String
+  owner            String
+  uploadDate       DateTime    @default(now())
+  lastAccess       DateTime    @default(now())
+  disposal         String      @default("Active")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  sharingLogs SharingLog[]
+
+  @@index([vaultClientId])
+  @@index([classification])
+  @@map("data_assets")
+}
+
+model SharingLog {
+  id            String         @id @default(uuid())
+  dataAssetId   String
+  dataAsset     DataAsset      @relation(fields: [dataAssetId], references: [id], onDelete: Cascade)
+  vaultClientId String
+  vaultClient   VaultClient    @relation(fields: [vaultClientId], references: [id])
+  sharedBy      String
+  sharedWith    String
+  purpose       String
+  approval      ApprovalStatus @default(PENDING)
+  expiryDate    DateTime?
+  createdAt     DateTime       @default(now())
+
+  @@index([vaultClientId])
+  @@index([approval])
+  @@map("sharing_logs")
+}
+
+model DpdpRegister {
+  id            String         @id @default(uuid())
+  vaultClientId String
+  vaultClient   VaultClient    @relation(fields: [vaultClientId], references: [id], onDelete: Cascade)
+  registerType  String
+  status        RegisterStatus @default(GAP)
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([vaultClientId, registerType])
+  @@map("dpdp_registers")
+}
+
+model AiConversation {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String   @default("New Conversation")
+  messages  Json     @default("[]")
+  module    String   @default("general")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, module])
+  @@map("ai_conversations")
+}
