@@ -13,7 +13,7 @@
     "db:push": "prisma db push"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "20.x"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -44,6 +44,6 @@
     "@types/uuid": "^9.0.8",
     "prisma": "^5.14.0",
     "tsx": "^4.11.2",
-    "typescript": "^5.4.5"
+    "typescript": "~5.4.5"
   }
 }
