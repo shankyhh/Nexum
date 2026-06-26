@@ -56,7 +56,9 @@ export const aiService = {
       });
     }
 
-    const history: AiMessage[] = conversation ? (conversation.messages as AiMessage[]) : [];
+    const history: AiMessage[] = conversation
+      ? (conversation.messages as unknown as AiMessage[])
+      : [];
 
     // Append user message
     const userMsg: AiMessage = { role: 'user', content: message, timestamp: new Date().toISOString() };
